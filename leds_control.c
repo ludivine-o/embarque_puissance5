@@ -66,11 +66,16 @@ static void computeMessage(unsigned char * const buffer,
   buffer[SIZE_OF_BUFFER - 1] = '\n';
 }
 
-LedControlReturnCode setLedColor(const unsigned int row, 
-                                 const unsigned int col, 
-                                 const unsigned int red, 
-                                 const unsigned int green, 
-                                 const unsigned int blue) {
+LedControlReturnCode setLedColor(const unsigned int row,
+                                 const unsigned int col,
+                                 const unsigned int red,
+                                 const unsigned int green,
+                                 const unsigned int blue)	 {
+
+
+	HAL_UART_Transmit(&huart3, (uint8_t*)truc, strlen(truc),10);
+
+
   if (row > MAX_ROW || row == 0)
     return LCRC_ERROR_ROW;
 
