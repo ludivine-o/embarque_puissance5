@@ -20,12 +20,15 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
+#include "cmsis_os.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "gp4_game.h"
+#include "leds_control.h"
+#include "application.h"
+#include "__debug.h"
+#include "display.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +52,74 @@ UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+		.name = "defaultTask",
+		.priority = (osPriority_t) osPriorityNormal,
+		.stack_size = 128 * 4
+};
+/* Definitions for myTask01 */
+osThreadId_t myTask01Handle;
+const osThreadAttr_t myTask01_attributes = {
+		.name = "myTask01",
+		.priority = (osPriority_t) osPriorityNormal,
+		.stack_size = 128 * 4
+};
+/* Definitions for myTask02 */
+osThreadId_t myTask02Handle;
+const osThreadAttr_t myTask02_attributes = {
+		.name = "myTask02",
+		.priority = (osPriority_t) osPriorityNormal,
+		.stack_size = 128 * 4
+};
+/* Definitions for myTask03 */
+osThreadId_t myTask03Handle;
+const osThreadAttr_t myTask03_attributes = {
+		.name = "myTask03",
+		.priority = (osPriority_t) osPriorityNormal,
+		.stack_size = 128 * 4
+};
+/* Definitions for readToApp */
+osMessageQueueId_t readToAppHandle;
+const osMessageQueueAttr_t readToApp_attributes = {
+		.name = "readToApp"
+};
+/* Definitions for appToDisplay */
+osMessageQueueId_t appToDisplayHandle;
+const osMessageQueueAttr_t appToDisplay_attributes = {
+		.name = "appToDisplay"
+};
+/* Definitions for UARTReception */
+osMessageQueueId_t UARTReceptionHandle;
+const osMessageQueueAttr_t UARTReception_attributes = {
+		.name = "UARTReception"
+};
+/* Definitions for UARTSend */
+osMessageQueueId_t UARTSendHandle;
+const osMessageQueueAttr_t UARTSend_attributes = {
+		.name = "UARTSend"
+};
+/* Definitions for timerAutoPlayShort */
+osTimerId_t timerAutoPlayShortHandle;
+const osTimerAttr_t timerAutoPlayShort_attributes = {
+		.name = "timerAutoPlayShort"
+};
+/* Definitions for timerAutoPlayLong */
+osTimerId_t timerAutoPlayLongHandle;
+const osTimerAttr_t timerAutoPlayLong_attributes = {
+		.name = "timerAutoPlayLong"
+};
+/* Definitions for semDisplay */
+osSemaphoreId_t semDisplayHandle;
+const osSemaphoreAttr_t semDisplay_attributes = {
+		.name = "semDisplay"
+};
+/* Definitions for semRead */
+osSemaphoreId_t semReadHandle;
+const osSemaphoreAttr_t semRead_attributes = {
+		.name = "semRead"
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -59,6 +130,13 @@ static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
+void StartDefaultTask(void *argument);
+void StartTask01(void *argument);
+void StartTask02(void *argument);
+void StartTask03(void *argument);
+void Callback01(void *argument);
+void Callback02(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -84,14 +162,12 @@ int main(void)
 	HAL_Init();
 
 	/* USER CODE BEGIN Init */
-
 	/* USER CODE END Init */
 
 	/* Configure the system clock */
 	SystemClock_Config();
 
 	/* USER CODE BEGIN SysInit */
-
 	/* USER CODE END SysInit */
 
 	/* Initialize all configured peripherals */
@@ -101,506 +177,483 @@ int main(void)
 	MX_USB_OTG_FS_PCD_Init();
 	/* USER CODE BEGIN 2 */
 
+
 	/* USER CODE END 2 */
 
+	/* Init scheduler */
+	osKernelInitialize();
+
+	/* USER CODE BEGIN RTOS_MUTEX */
+	/* add mutexes, ... */
+	/* USER CODE END RTOS_MUTEX */
+
+	/* Create the semaphores(s) */
+	/* creation of semDisplay */
+	semDisplayHandle = osSemaphoreNew(1, 1, &semDisplay_attributes);
+
+	/* creation of semRead */
+	semReadHandle = osSemaphoreNew(1, 1, &semRead_attributes);
+
+	/* USER CODE BEGIN RTOS_SEMAPHORES */
+	/* add semaphores, ... */
+	/* USER CODE END RTOS_SEMAPHORES */
+
+	/* Create the timer(s) */
+	/* creation of timerAutoPlayShort */
+	timerAutoPlayShortHandle = osTimerNew(Callback01, osTimerOnce, NULL, &timerAutoPlayShort_attributes);
+
+	/* creation of timerAutoPlayLong */
+	timerAutoPlayLongHandle = osTimerNew(Callback02, osTimerOnce, NULL, &timerAutoPlayLong_attributes);
+
+	/* USER CODE BEGIN RTOS_TIMERS */
+	/* start timers, add new ones, ... */
+	/* USER CODE END RTOS_TIMERS */
+
+	/* Create the queue(s) */
+	/* creation of readToApp */
+	readToAppHandle = osMessageQueueNew (16, sizeof(data_msg), &readToApp_attributes);
+
+	/* creation of appToDisplay */
+	appToDisplayHandle = osMessageQueueNew (16, sizeof(data_msg), &appToDisplay_attributes);
+
+	/* Create the queue(s) */
+	/* creation of UARTReception */
+	UARTReceptionHandle = osMessageQueueNew (16, SIZE_OF_PLAYER_COMMAND_BUFFER, &UARTReception_attributes);
+
+	/* Create the queue(s) */
+	/* creation of UARTSend */
+	UARTSendHandle = osMessageQueueNew (16, SIZE_OF_LED_COMMAND_BUFFER, &UARTSend_attributes);
+
+
+	/* USER CODE BEGIN RTOS_QUEUES */
+	/* add queues, ... */
+	/* USER CODE END RTOS_QUEUES */
+
+	/* Create the thread(s) */
+	/* creation of defaultTask */
+	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+	/* creation of myTask01 */
+	myTask01Handle = osThreadNew(StartTask01, NULL, &myTask01_attributes);
+
+	/* creation of myTask02 */
+	myTask02Handle = osThreadNew(StartTask02, NULL, &myTask02_attributes);
+
+	/* creation of myTask03 */
+	myTask03Handle = osThreadNew(StartTask03, NULL, &myTask03_attributes);
+
+	/* USER CODE BEGIN RTOS_THREADS */
+
+
+
+	/* add threads, ... */
+	/* USER CODE END RTOS_THREADS */
+
+	/* Start scheduler */
+	osKernelStart();
+
+	/* We should never get here as control is now taken by the scheduler */
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	//création des couleurs//
+	/* USER CODE END WHILE */
 
-	typedef struct{
-		int RValue;
-		int GValue;
-		int BValue;
-	}color;
+	/* USER CODE BEGIN 3 */
+	/* USER CODE END 3 */
+}
 
-	color white = {255, 255, 255},
-			green = {0, 255, 0},
-			blue = {0, 0, 255},
-			red = {255, 0, 0},
-			purple = {255, 0, 255},
-			yellow = {255, 255, 0},
-			black = {0, 0, 0};
+/**
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void)
+{
+	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-	void setLedColor(const unsigned int row, const unsigned int col, const unsigned int red, const unsigned int green,
-			const unsigned int blue) {
-
-		char message[11];
-		sprintf(message, "R%d%d%02x%02x%02x\n", row, col, red, green, blue);
-		HAL_UART_Transmit(&huart3, (uint8_t*)message, strlen(message), 10);
-		HAL_Delay(50);
-
-	}
-
-	//recoit un tableau et l'affiche//
-
-	//TODO ajouter fonction pour comparer matrice et actual_display pour modifier que les cases nécessaires //
-	void Setledmatrix(color **tabline, int tabsize){
-		for (int row = 0; row < tabsize; row ++){
-			for (int col = 0; col < tabsize; col ++){
-				setLedColor((row), (col), tabline[row][col].RValue, tabline[row][col].GValue, tabline[row][col].BValue );
-				//HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), 10);
-
-			}
-		}
-	}
-
-
-
-
-	//créée et affiche un tableau de couleur unie//
-
-	void Setonecolor(color color_selected,int tabsize){
-		color line [7] = {color_selected, color_selected, color_selected, color_selected, color_selected, color_selected, color_selected};
-		color * tabline [7] = {line, line, line, line, line, line, line};
-		Setledmatrix(tabline, tabsize);
-	}
-
-
-	//créée et affiche tableau avec numéro//
-
-	void Setnumber(int number, color nbr_color, color bckgrnd, int tabsize){
-		if (number == 0){                  // modifie la couleur des emplacements à modifier pour former un 0 //
-			color line_1 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_4 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_5 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_6 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_7 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-		if (number == 1){                  // modifie la couleur des emplacements à modifier pour former un 1 //
-			color line_1 [7] = {bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd};
-			color line_2 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, bckgrnd, bckgrnd, bckgrnd};
-			color line_3 [7] = {bckgrnd, nbr_color, bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd};
-			color line_6 [7] = {bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd};
-			color line_7 [7] = {bckgrnd, nbr_color, nbr_color, nbr_color, nbr_color, nbr_color, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-		if (number == 2){
-			color line_1 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd};
-			color line_6 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd};
-			color line_7 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, nbr_color, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-
-		if (number == 3){
-			color line_1 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, bckgrnd, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_6 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_7 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-
-		if (number == 4){
-			color line_1 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_6 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_7 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-
-		if (number == 5){
-			color line_1 [7] = {bckgrnd, nbr_color, nbr_color, nbr_color, nbr_color, nbr_color, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd};
-			color line_3 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_6 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_7 [7] = {bckgrnd, nbr_color, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-
-		if (number == 6){
-			color line_1 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_6 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_7 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-
-		if (number == 7){
-			color line_1 [7] = {bckgrnd, nbr_color, nbr_color, nbr_color, nbr_color, nbr_color, bckgrnd};
-			color line_2 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd};
-			color line_6 [7] = {bckgrnd, bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, bckgrnd};
-			color line_7 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-
-		if (number == 8){
-			color line_1 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_6 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_7 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-
-		if (number == 9){
-			color line_1 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_2 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_3 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_4 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color line_5 [7] = {bckgrnd, bckgrnd, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_6 [7] = {bckgrnd, nbr_color, bckgrnd, bckgrnd, bckgrnd, nbr_color, bckgrnd};
-			color line_7 [7] = {bckgrnd, bckgrnd, nbr_color, nbr_color, nbr_color, bckgrnd, bckgrnd};
-			color *number_tabline [7] = {line_1, line_2, line_3, line_4, line_5, line_6, line_7};
-			Setledmatrix(number_tabline, tabsize);
-		}
-	}
-
-
-	//affiche un compte à rebours
-	void countdown(int countdown, int tabsize){
-		for(int count = countdown; count >= 0; count --){
-			if (count == 9){
-				Setnumber(count, white, black, tabsize);
-			}
-			if (count == 8){
-				Setnumber(count, blue, black, tabsize);
-			}
-			if (count == 7){
-				Setnumber(count, green, black, tabsize);
-			}
-			if (count == 6){
-				Setnumber(count, yellow, black, tabsize);
-			}
-			if (count == 5){
-				Setnumber(count, purple, black, tabsize);
-			}
-			if (count == 4){
-				Setnumber(count, red, black, tabsize);
-			}
-			if (count == 3){
-				Setnumber(count, green, black, tabsize);
-			}
-			if (count == 2){
-				Setnumber(count, yellow, black, tabsize);
-			}
-			if (count == 1){
-				Setnumber(count, red, black, tabsize);
-			}
-			if (count == 0){
-				Setnumber(count, white, black, tabsize);
-			}
-			HAL_Delay(500);
-		}
-	}
-
-	while (1)
+	/** Configure the main internal regulator output voltage
+	 */
+	__HAL_RCC_PWR_CLK_ENABLE();
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+	/** Initializes the CPU, AHB and APB busses clocks
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 4;
+	RCC_OscInitStruct.PLL.PLLN = 168;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+	RCC_OscInitStruct.PLL.PLLQ = 7;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 	{
+		Error_Handler();
+	}
+	/** Initializes the CPU, AHB and APB busses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+			|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-		int button_state = 0;
-		while (button_state = HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin) == 1){
-			countdown(9,7);
-			int new_button_state = HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin);
-			if (new_button_state==1){
-				button_state = 0;
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+	{
+		Error_Handler();
+	}
+}
+
+/**
+ * @brief ETH Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_ETH_Init(void)
+{
+
+	/* USER CODE BEGIN ETH_Init 0 */
+
+	/* USER CODE END ETH_Init 0 */
+
+	/* USER CODE BEGIN ETH_Init 1 */
+
+	/* USER CODE END ETH_Init 1 */
+	heth.Instance = ETH;
+	heth.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
+	heth.Init.PhyAddress = LAN8742A_PHY_ADDRESS;
+	heth.Init.MACAddr[0] =   0x00;
+	heth.Init.MACAddr[1] =   0x80;
+	heth.Init.MACAddr[2] =   0xE1;
+	heth.Init.MACAddr[3] =   0x00;
+	heth.Init.MACAddr[4] =   0x00;
+	heth.Init.MACAddr[5] =   0x00;
+	heth.Init.RxMode = ETH_RXPOLLING_MODE;
+	heth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
+	heth.Init.MediaInterface = ETH_MEDIA_INTERFACE_RMII;
+
+	/* USER CODE BEGIN MACADDRESS */
+
+	/* USER CODE END MACADDRESS */
+
+	if (HAL_ETH_Init(&heth) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN ETH_Init 2 */
+
+	/* USER CODE END ETH_Init 2 */
+
+}
+
+/**
+ * @brief USART3 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_USART3_UART_Init(void)
+{
+
+	/* USER CODE BEGIN USART3_Init 0 */
+
+	/* USER CODE END USART3_Init 0 */
+
+	/* USER CODE BEGIN USART3_Init 1 */
+
+	/* USER CODE END USART3_Init 1 */
+	huart3.Instance = USART3;
+	huart3.Init.BaudRate = 115200;
+	huart3.Init.WordLength = UART_WORDLENGTH_8B;
+	huart3.Init.StopBits = UART_STOPBITS_1;
+	huart3.Init.Parity = UART_PARITY_NONE;
+	huart3.Init.Mode = UART_MODE_TX_RX;
+	huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+	if (HAL_UART_Init(&huart3) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN USART3_Init 2 */
+
+	/* USER CODE END USART3_Init 2 */
+
+}
+
+/**
+ * @brief USB_OTG_FS Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_USB_OTG_FS_PCD_Init(void)
+{
+
+	/* USER CODE BEGIN USB_OTG_FS_Init 0 */
+
+	/* USER CODE END USB_OTG_FS_Init 0 */
+
+	/* USER CODE BEGIN USB_OTG_FS_Init 1 */
+
+	/* USER CODE END USB_OTG_FS_Init 1 */
+	hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
+	hpcd_USB_OTG_FS.Init.dev_endpoints = 4;
+	hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
+	hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+	hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+	hpcd_USB_OTG_FS.Init.Sof_enable = ENABLE;
+	hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
+	hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
+	hpcd_USB_OTG_FS.Init.vbus_sensing_enable = ENABLE;
+	hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
+	if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN USB_OTG_FS_Init 2 */
+
+	/* USER CODE END USB_OTG_FS_Init 2 */
+
+}
+
+/**
+ * @brief GPIO Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_GPIO_Init(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOH_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOD_CLK_ENABLE();
+	__HAL_RCC_GPIOG_CLK_ENABLE();
+
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOB, LD1_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
+
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
+
+	/*Configure GPIO pin : USER_Btn_Pin */
+	GPIO_InitStruct.Pin = USER_Btn_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */
+	GPIO_InitStruct.Pin = LD1_Pin|LD3_Pin|LD2_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : USB_PowerSwitchOn_Pin */
+	GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(USB_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : USB_OverCurrent_Pin */
+	GPIO_InitStruct.Pin = USB_OverCurrent_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+
+}
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+ * @brief  Function implementing the defaultTask thread.
+ * @param  argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+	/* USER CODE BEGIN 5 */
+	/* Infinite loop */
+
+	unsigned char UARTmessageToSend[SIZE_OF_LED_COMMAND_BUFFER];
+	unsigned char UARTmessageReceived[SIZE_OF_PLAYER_COMMAND_BUFFER];
+	for(;;)
+	{
+		if(osMessageQueueGet(UARTSendHandle, UARTmessageToSend, NULL, 100)==osOK){
+			HAL_UART_Transmit(&huart3, UARTmessageToSend, SIZE_OF_LED_COMMAND_BUFFER, 100);
+		}
+		if(HAL_UART_Receive(&huart3, UARTmessageReceived,SIZE_OF_PLAYER_COMMAND_BUFFER, 100)==HAL_OK){
+			osMessageQueuePut(UARTReceptionHandle, UARTmessageReceived, 1, 100);
+		}
+	}
+	/* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartTask01 */
+/**
+ * @brief Function implementing the myTask01 thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartTask01 */
+void StartTask01(void *argument)
+{
+	/* USER CODE BEGIN StartTask01 */
+
+	debug_pr_fn(1,"read()entrée thread read\n");
+	char recept_tab[5]={0};
+	data_msg request;
+
+	/* Infinite loop */
+	for(;;)
+	{
+		osDelay(1);
+		if (readbutton(recept_tab, 5) == LCRC_OK) {
+			debug_pr_fn(1,"read()input = (%d %d %d %d)\n", recept_tab[0], recept_tab[1],	recept_tab[2], recept_tab[3]);
+			if (recept_tab[3] == 100) {
+				request.type = MSG_PLAYER;
+
+				if (recept_tab[1] == 49) {
+					request.params.player.player = PLAYER_1;
+				}
+				if (recept_tab[1] == 50) {
+					request.params.player.player = PLAYER_2;
+				}
+				if (recept_tab[2] == 117) { //vers le haut
+					debug_pr_fn(2,"read_button():condition \"haut\"\n");
+					request.params.player.direction = UP;
+				}
+				if (recept_tab[2] == 114 ) {	// vers le droite
+					debug_pr_fn(2,"read_button():condition \"droite\" \n");
+					request.params.player.direction = RIGHT;
+				}
+				if (recept_tab[2] == 100 ) { //vers le bas
+					debug_pr_fn(2,"read_button():condition \"bas\"\n");
+					request.params.player.direction = DOWN;
+				}
+				if (recept_tab[2] == 108 ) { //vers le gauche
+					debug_pr_fn(2,"read_button():condition \"gauche\"\n");
+					request.params.player.direction = LEFT;
+				}
+				debug_pr_fn(1,"read() send to queue = OK\n");
+				SendMessage(LIST_READ, &request, sizeof(struct data_msg));
 			}
 		}
-
-				//		Setnumber(5, red, white, 7);
-				//		Setnumber(4, green, white, 7);
-				//		Setnumber(3, blue, white, 7);
-				//		Setnumber(2, red, green, 7);
-				//		Setnumber(1, blue, white, 7);
-
-				/* **********************************Correction de Thomas************************************
-				 *	char int_to_ascii_hex_nibble(uint8_t nibble) {											*
-				 * 		if (nibble < 10) return '0'+nibble;													*
-				 *		else if (nibble < 16) return 'A'+(nibble-10);										*
-				 *		else return '0';																	*
-				 *	}																						*
-				 *	void setLedColor(uint8_t row, uint8_t col, uint8_t red, uint8_t green, uint8_t blue) {	*
-				 *		uint8_t trame[10];																	*
-				 *		trame[0] = 'R';																		*
-				 *		trame[1] = '0' + row;																*
-				 *		trame[2] = '0' + col;																*
-				 *		trame[3] = int_to_ascii_hex_nibble((red & 0xf0)>>4);								*
-				 *		trame[4] = int_to_ascii_hex_nibble(red & 0x0f);										*
-				 *		trame[5] = int_to_ascii_hex_nibble((green & 0xf0)>>4);								*
-				 *		trame[6] = int_to_ascii_hex_nibble(green & 0x0f);									*
-				 *		trame[7] = int_to_ascii_hex_nibble((blue & 0xf0)>>4);								*
-				 *		trame[8] = int_to_ascii_hex_nibble(blue & 0x0f);									*
-				 *		trame[9] = '\n';																	*
-				 *		HAL_UART_Transmit(&huart3, trame, 10, 100);											*
-				 *	}																						*
-				 * 																							*
-				 *********************************************************************************************/
+	}
+}
 
 
 
+/* USER CODE END StartTask01 */
 
-				/* USER CODE END WHILE */
 
-				/* USER CODE BEGIN 3 */
-			}
-			/* USER CODE END 3 */
-		}
+/* USER CODE BEGIN Header_StartTask02 */
+/**
+ * @brief Function implementing the myTask02 thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartTask02 */
+void StartTask02(void *argument)
+{
+	/* USER CODE BEGIN StartTask02 */
+	/* Infinite loop */
+	for(;;)
+	{
+		osDelay(1);
+		applicationV2();
+	}
+	/* USER CODE END StartTask02 */
+}
 
-		/**
-		 * @brief System Clock Configuration
-		 * @retval None
-		 */
-		void SystemClock_Config(void)
-		{
-			RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-			RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+/* USER CODE BEGIN Header_StartTask03 */
+/**
+ * @brief Function implementing the myTask03 thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartTask03 */
+void StartTask03(void *argument)
+{
+	/* USER CODE BEGIN StartTask03 */
+	/* Infinite loop */
+	for(;;)
+	{
+		osDelay(1);
+		display();
+	}
+	/* USER CODE END StartTask03 */
+}
 
-			/** Configure the main internal regulator output voltage
-			 */
-			__HAL_RCC_PWR_CLK_ENABLE();
-			__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-			/** Initializes the CPU, AHB and APB busses clocks
-			 */
-			RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-			RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-			RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-			RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-			RCC_OscInitStruct.PLL.PLLM = 4;
-			RCC_OscInitStruct.PLL.PLLN = 168;
-			RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-			RCC_OscInitStruct.PLL.PLLQ = 7;
-			if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-			{
-				Error_Handler();
-			}
-			/** Initializes the CPU, AHB and APB busses clocks
-			 */
-			RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-					|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-			RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-			RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-			RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-			RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+/* Callback01 function */
+void Callback01(void *argument)
+{
+	/* USER CODE BEGIN Callback01 */
 
-			if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
-			{
-				Error_Handler();
-			}
-		}
+	/* USER CODE END Callback01 */
+}
 
-		/**
-		 * @brief ETH Initialization Function
-		 * @param None
-		 * @retval None
-		 */
-		static void MX_ETH_Init(void)
-		{
+/* Callback02 function */
+void Callback02(void *argument)
+{
+	/* USER CODE BEGIN Callback02 */
 
-			/* USER CODE BEGIN ETH_Init 0 */
+	/* USER CODE END Callback02 */
+}
 
-			/* USER CODE END ETH_Init 0 */
+/**
+ * @brief  Period elapsed callback in non blocking mode
+ * @note   This function is called  when TIM1 interrupt took place, inside
+ * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+ * a global variable "uwTick" used as application time base.
+ * @param  htim : TIM handle
+ * @retval None
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	/* USER CODE BEGIN Callback 0 */
 
-			/* USER CODE BEGIN ETH_Init 1 */
+	/* USER CODE END Callback 0 */
+	if (htim->Instance == TIM1) {
+		HAL_IncTick();
+	}
+	/* USER CODE BEGIN Callback 1 */
 
-			/* USER CODE END ETH_Init 1 */
-			heth.Instance = ETH;
-			heth.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
-			heth.Init.PhyAddress = LAN8742A_PHY_ADDRESS;
-			heth.Init.MACAddr[0] =   0x00;
-			heth.Init.MACAddr[1] =   0x80;
-			heth.Init.MACAddr[2] =   0xE1;
-			heth.Init.MACAddr[3] =   0x00;
-			heth.Init.MACAddr[4] =   0x00;
-			heth.Init.MACAddr[5] =   0x00;
-			heth.Init.RxMode = ETH_RXPOLLING_MODE;
-			heth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
-			heth.Init.MediaInterface = ETH_MEDIA_INTERFACE_RMII;
+	/* USER CODE END Callback 1 */
+}
 
-			/* USER CODE BEGIN MACADDRESS */
+/**
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void)
+{
+	/* USER CODE BEGIN Error_Handler_Debug */
+	/* User can add his own implementation to report the HAL error return state */
 
-			/* USER CODE END MACADDRESS */
-
-			if (HAL_ETH_Init(&heth) != HAL_OK)
-			{
-				Error_Handler();
-			}
-			/* USER CODE BEGIN ETH_Init 2 */
-
-			/* USER CODE END ETH_Init 2 */
-
-		}
-
-		/**
-		 * @brief USART3 Initialization Function
-		 * @param None
-		 * @retval None
-		 */
-		static void MX_USART3_UART_Init(void)
-		{
-
-			/* USER CODE BEGIN USART3_Init 0 */
-
-			/* USER CODE END USART3_Init 0 */
-
-			/* USER CODE BEGIN USART3_Init 1 */
-
-			/* USER CODE END USART3_Init 1 */
-			huart3.Instance = USART3;
-			huart3.Init.BaudRate = 115200;
-			huart3.Init.WordLength = UART_WORDLENGTH_8B;
-			huart3.Init.StopBits = UART_STOPBITS_1;
-			huart3.Init.Parity = UART_PARITY_NONE;
-			huart3.Init.Mode = UART_MODE_TX_RX;
-			huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-			huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-			if (HAL_UART_Init(&huart3) != HAL_OK)
-			{
-				Error_Handler();
-			}
-			/* USER CODE BEGIN USART3_Init 2 */
-
-			/* USER CODE END USART3_Init 2 */
-
-		}
-
-		/**
-		 * @brief USB_OTG_FS Initialization Function
-		 * @param None
-		 * @retval None
-		 */
-		static void MX_USB_OTG_FS_PCD_Init(void)
-		{
-
-			/* USER CODE BEGIN USB_OTG_FS_Init 0 */
-
-			/* USER CODE END USB_OTG_FS_Init 0 */
-
-			/* USER CODE BEGIN USB_OTG_FS_Init 1 */
-
-			/* USER CODE END USB_OTG_FS_Init 1 */
-			hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
-			hpcd_USB_OTG_FS.Init.dev_endpoints = 4;
-			hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
-			hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
-			hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
-			hpcd_USB_OTG_FS.Init.Sof_enable = ENABLE;
-			hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
-			hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
-			hpcd_USB_OTG_FS.Init.vbus_sensing_enable = ENABLE;
-			hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
-			if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
-			{
-				Error_Handler();
-			}
-			/* USER CODE BEGIN USB_OTG_FS_Init 2 */
-
-			/* USER CODE END USB_OTG_FS_Init 2 */
-
-		}
-
-		/**
-		 * @brief GPIO Initialization Function
-		 * @param None
-		 * @retval None
-		 */
-		static void MX_GPIO_Init(void)
-		{
-			GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-			/* GPIO Ports Clock Enable */
-			__HAL_RCC_GPIOC_CLK_ENABLE();
-			__HAL_RCC_GPIOH_CLK_ENABLE();
-			__HAL_RCC_GPIOA_CLK_ENABLE();
-			__HAL_RCC_GPIOB_CLK_ENABLE();
-			__HAL_RCC_GPIOD_CLK_ENABLE();
-			__HAL_RCC_GPIOG_CLK_ENABLE();
-
-			/*Configure GPIO pin Output Level */
-			HAL_GPIO_WritePin(GPIOB, LD1_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
-
-			/*Configure GPIO pin Output Level */
-			HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
-
-			/*Configure GPIO pin : USER_Btn_Pin */
-			GPIO_InitStruct.Pin = USER_Btn_Pin;
-			GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-			GPIO_InitStruct.Pull = GPIO_NOPULL;
-			HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
-
-			/*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */
-			GPIO_InitStruct.Pin = LD1_Pin|LD3_Pin|LD2_Pin;
-			GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-			GPIO_InitStruct.Pull = GPIO_NOPULL;
-			GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-			HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-			/*Configure GPIO pin : USB_PowerSwitchOn_Pin */
-			GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
-			GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-			GPIO_InitStruct.Pull = GPIO_NOPULL;
-			GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-			HAL_GPIO_Init(USB_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
-
-			/*Configure GPIO pin : USB_OverCurrent_Pin */
-			GPIO_InitStruct.Pin = USB_OverCurrent_Pin;
-			GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-			GPIO_InitStruct.Pull = GPIO_NOPULL;
-			HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
-
-		}
-
-		/* USER CODE BEGIN 4 */
-
-		/* USER CODE END 4 */
-
-		/**
-		 * @brief  This function is executed in case of error occurrence.
-		 * @retval None
-		 */
-		void Error_Handler(void)
-		{
-			/* USER CODE BEGIN Error_Handler_Debug */
-			/* User can add his own implementation to report the HAL error return state */
-
-			/* USER CODE END Error_Handler_Debug */
-		}
+	/* USER CODE END Error_Handler_Debug */
+}
 
 #ifdef  USE_FULL_ASSERT
-		/**
-		 * @brief  Reports the name of the source file and the source line number
-		 *         where the assert_param error has occurred.
-		 * @param  file: pointer to the source file name
-		 * @param  line: assert_param error line source number
-		 * @retval None
-		 */
-		void assert_failed(uint8_t *file, uint32_t line)
-		{
-			/* USER CODE BEGIN 6 */
-			/* User can add his own implementation to report the file name and line number,
+/**
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
+void assert_failed(uint8_t *file, uint32_t line)
+{ 
+	/* USER CODE BEGIN 6 */
+	/* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-			/* USER CODE END 6 */
-		}
+	/* USER CODE END 6 */
+}
 #endif /* USE_FULL_ASSERT */
 
-		/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

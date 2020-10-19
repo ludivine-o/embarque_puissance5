@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>embarque_puissance4</name>
+	<name>embarque_puissance5</name>
 	<comment />
 	<projects>
 	</projects>
@@ -70,7 +70,4 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
-	<linkedResources>
-		
-	</linkedResources>
 </projectDescription>
