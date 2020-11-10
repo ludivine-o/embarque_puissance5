@@ -18,7 +18,7 @@
 #define LINE_COUNT 6	//il y a 6 lignes (de 0 à 5)
 #define START_POSITION 3
 
-#define color_P1 Yellow
+#define color_P1 Red
 #define color_P2 Green
 #define EMPTY_SPACE 0
 

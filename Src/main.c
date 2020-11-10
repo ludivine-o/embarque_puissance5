@@ -29,6 +29,12 @@
 #include "application.h"
 #include "__debug.h"
 #include "display.h"
+#include <ctype.h>
+#include <string.h>
+
+
+#include "mydebug.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -515,15 +521,48 @@ void StartDefaultTask(void *argument)
 	/* USER CODE BEGIN 5 */
 	/* Infinite loop */
 
+	int size_of_debug_frame = 31;
+	char debug_frame[] = "dEngage le jeu que je le gagne\n";
+	char truc[size_of_debug_frame];
+	int change_count = 0;
+
+	memcpy((uint8_t*)truc, debug_frame, size_of_debug_frame);
+
+	HAL_UART_Transmit(&huart7, (uint8_t*)debug_frame, size_of_debug_frame, 10);
+
 	unsigned char UARTmessageToSend[SIZE_OF_LED_COMMAND_BUFFER];
 	unsigned char UARTmessageReceived[SIZE_OF_PLAYER_COMMAND_BUFFER];
 	for(;;)
 	{
-		if(osMessageQueueGet(UARTSendHandle, UARTmessageToSend, 0, 10)==osOK){
-			HAL_UART_Transmit(&huart7, UARTmessageToSend, SIZE_OF_LED_COMMAND_BUFFER, 10);
+		if (osMessageQueueGetCount(UARTSendHandle)){
+			if(osMessageQueueGet(UARTSendHandle, UARTmessageToSend, 0, 10)==osOK){
+				HAL_UART_Transmit(&huart7, UARTmessageToSend, SIZE_OF_LED_COMMAND_BUFFER, 10);
+			}
 		}
 		if(HAL_UART_Receive(&huart7, UARTmessageReceived,SIZE_OF_PLAYER_COMMAND_BUFFER, 10)==HAL_OK){
 			osMessageQueuePut(UARTReceptionHandle, UARTmessageReceived, 1, 10);
+		}
+		if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)){
+			if(change_count == 0)
+			{
+				debug_frame_to_upper(truc, size_of_debug_frame);
+				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
+				change_count = 1;
+			}
+			else if(change_count == 1)
+			{
+				debug_frame_to_lower(truc, size_of_debug_frame);
+				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
+				change_count = 2;
+			}
+			else if(change_count == 2)
+			{
+				debug_frame_reverse(truc, size_of_debug_frame);
+				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
+				debug_frame_reverse(truc, size_of_debug_frame);
+				change_count = 0;
+			}
+
 		}
 	}
 	/* USER CODE END 5 */
