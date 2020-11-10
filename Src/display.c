@@ -5,7 +5,7 @@
  *      Author: ludivineo
  */
 
-#include<pthread.h>
+
 #include <unistd.h>
 
 
@@ -162,12 +162,14 @@ void SetLedMatrix(void) {
 	for (int row = 0; row < 7; row++) {
 		int col = 0;
 		while (col < 7) {
-			if 		(is_matrix_init
-					&& actual_matrix[row][col].RValue == matrix[row][col].RValue //led est deja de la bonne couleur
+			if 		(
+					//is_matrix_init &&
+					actual_matrix[row][col].RValue == matrix[row][col].RValue //led est deja de la bonne couleur
 					&& actual_matrix[row][col].GValue == matrix[row][col].GValue
 					&& actual_matrix[row][col].BValue
 							== matrix[row][col].BValue) {
-			} else {
+			}
+			else {
 				setLedColor((row + 1), (col + 1), matrix[row][col].RValue,
 						matrix[row][col].GValue, matrix[row][col].BValue);
 				actual_matrix[row][col].RValue = matrix[row][col].RValue;
@@ -178,7 +180,7 @@ void SetLedMatrix(void) {
 			col++;
 		}
 	}
-	is_matrix_init = 1;
+	//is_matrix_init = 1;
 }
 
 void SetAllBlack(){
@@ -202,17 +204,18 @@ void SetAllWhite(){
 }
 
 void *display(void) {
+	SetAllBlack();
+	SetLedMatrix();
 	debug_pr_fn(1, "display()entrée dans thread display\n");
 	data_msg request;
 	int receive_status;
-	//SetLedMatrix();
+	SetLedMatrix();
 	while (1) {
 		receive_status = ReceiveMessage(LIST_DISPLAY, &request,	sizeof(data_msg));
 		debug_pr_fn(1, "display() : receive = %d\n", receive_status);
 		if (receive_status == 1) {
 			if (request.type == MSG_MOVE_TOKEN) {
 				debug_pr_fn(1, "display() : msg player = %d \n", request.type);
-
 				pos_token_t positions = request.params.move_token.positions;
 				matrix[positions.beg_position.l][positions.beg_position.c] = Black;
 				matrix[positions.end_position.l][positions.end_position.c] = request.params.move_token.color;

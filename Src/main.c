@@ -48,6 +48,7 @@
 /* Private variables ---------------------------------------------------------*/
 ETH_HandleTypeDef heth;
 
+UART_HandleTypeDef huart7;
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -90,16 +91,6 @@ osMessageQueueId_t appToDisplayHandle;
 const osMessageQueueAttr_t appToDisplay_attributes = {
 		.name = "appToDisplay"
 };
-/* Definitions for UARTReception */
-osMessageQueueId_t UARTReceptionHandle;
-const osMessageQueueAttr_t UARTReception_attributes = {
-		.name = "UARTReception"
-};
-/* Definitions for UARTSend */
-osMessageQueueId_t UARTSendHandle;
-const osMessageQueueAttr_t UARTSend_attributes = {
-		.name = "UARTSend"
-};
 /* Definitions for timerAutoPlayShort */
 osTimerId_t timerAutoPlayShortHandle;
 const osTimerAttr_t timerAutoPlayShort_attributes = {
@@ -122,6 +113,17 @@ const osSemaphoreAttr_t semRead_attributes = {
 };
 /* USER CODE BEGIN PV */
 
+/* Definitions for UARTReception */
+osMessageQueueId_t UARTReceptionHandle;
+const osMessageQueueAttr_t UARTReception_attributes = {
+		.name = "UARTReception"
+};
+/* Definitions for UARTSend */
+osMessageQueueId_t UARTSendHandle;
+const osMessageQueueAttr_t UARTSend_attributes = {
+		.name = "UARTSend"
+};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -130,6 +132,7 @@ static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
+static void MX_UART7_Init(void);
 void StartDefaultTask(void *argument);
 void StartTask01(void *argument);
 void StartTask02(void *argument);
@@ -175,6 +178,7 @@ int main(void)
 	MX_ETH_Init();
 	MX_USART3_UART_Init();
 	MX_USB_OTG_FS_PCD_Init();
+	MX_UART7_Init();
 	/* USER CODE BEGIN 2 */
 
 
@@ -211,19 +215,10 @@ int main(void)
 
 	/* Create the queue(s) */
 	/* creation of readToApp */
-	readToAppHandle = osMessageQueueNew (16, sizeof(data_msg), &readToApp_attributes);
+	readToAppHandle = osMessageQueueNew (100, sizeof(data_msg), &readToApp_attributes);
 
 	/* creation of appToDisplay */
-	appToDisplayHandle = osMessageQueueNew (16, sizeof(data_msg), &appToDisplay_attributes);
-
-	/* Create the queue(s) */
-	/* creation of UARTReception */
-	UARTReceptionHandle = osMessageQueueNew (16, SIZE_OF_PLAYER_COMMAND_BUFFER, &UARTReception_attributes);
-
-	/* Create the queue(s) */
-	/* creation of UARTSend */
-	UARTSendHandle = osMessageQueueNew (16, SIZE_OF_LED_COMMAND_BUFFER, &UARTSend_attributes);
-
+	appToDisplayHandle = osMessageQueueNew (100, sizeof(data_msg), &appToDisplay_attributes);
 
 	/* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
@@ -244,6 +239,12 @@ int main(void)
 
 	/* USER CODE BEGIN RTOS_THREADS */
 
+	/* creation of uart queue */
+
+
+	UARTReceptionHandle = osMessageQueueNew (100, 5, &UARTReception_attributes);
+
+	UARTSendHandle = osMessageQueueNew (100, 10, &UARTSend_attributes);
 
 
 	/* add threads, ... */
@@ -346,6 +347,39 @@ static void MX_ETH_Init(void)
 }
 
 /**
+ * @brief UART7 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_UART7_Init(void)
+{
+
+	/* USER CODE BEGIN UART7_Init 0 */
+
+	/* USER CODE END UART7_Init 0 */
+
+	/* USER CODE BEGIN UART7_Init 1 */
+
+	/* USER CODE END UART7_Init 1 */
+	huart7.Instance = UART7;
+	huart7.Init.BaudRate = 115200;
+	huart7.Init.WordLength = UART_WORDLENGTH_8B;
+	huart7.Init.StopBits = UART_STOPBITS_1;
+	huart7.Init.Parity = UART_PARITY_NONE;
+	huart7.Init.Mode = UART_MODE_TX_RX;
+	huart7.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huart7.Init.OverSampling = UART_OVERSAMPLING_16;
+	if (HAL_UART_Init(&huart7) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN UART7_Init 2 */
+
+	/* USER CODE END UART7_Init 2 */
+
+}
+
+/**
  * @brief USART3 Initialization Function
  * @param None
  * @retval None
@@ -427,6 +461,7 @@ static void MX_GPIO_Init(void)
 	__HAL_RCC_GPIOH_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOE_CLK_ENABLE();
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	__HAL_RCC_GPIOG_CLK_ENABLE();
 
@@ -484,11 +519,11 @@ void StartDefaultTask(void *argument)
 	unsigned char UARTmessageReceived[SIZE_OF_PLAYER_COMMAND_BUFFER];
 	for(;;)
 	{
-		if(osMessageQueueGet(UARTSendHandle, UARTmessageToSend, NULL, 100)==osOK){
-			HAL_UART_Transmit(&huart3, UARTmessageToSend, SIZE_OF_LED_COMMAND_BUFFER, 100);
+		if(osMessageQueueGet(UARTSendHandle, UARTmessageToSend, 0, 10)==osOK){
+			HAL_UART_Transmit(&huart7, UARTmessageToSend, SIZE_OF_LED_COMMAND_BUFFER, 10);
 		}
-		if(HAL_UART_Receive(&huart3, UARTmessageReceived,SIZE_OF_PLAYER_COMMAND_BUFFER, 100)==HAL_OK){
-			osMessageQueuePut(UARTReceptionHandle, UARTmessageReceived, 1, 100);
+		if(HAL_UART_Receive(&huart7, UARTmessageReceived,SIZE_OF_PLAYER_COMMAND_BUFFER, 10)==HAL_OK){
+			osMessageQueuePut(UARTReceptionHandle, UARTmessageReceived, 1, 10);
 		}
 	}
 	/* USER CODE END 5 */
@@ -512,7 +547,7 @@ void StartTask01(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		osDelay(1);
+		//osDelay(1);
 		if (readbutton(recept_tab, 5) == LCRC_OK) {
 			debug_pr_fn(1,"read()input = (%d %d %d %d)\n", recept_tab[0], recept_tab[1],	recept_tab[2], recept_tab[3]);
 			if (recept_tab[3] == 100) {
@@ -565,7 +600,6 @@ void StartTask02(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		osDelay(1);
 		applicationV2();
 	}
 	/* USER CODE END StartTask02 */
@@ -584,7 +618,6 @@ void StartTask03(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		osDelay(1);
 		display();
 	}
 	/* USER CODE END StartTask03 */

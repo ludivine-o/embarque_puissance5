@@ -80,12 +80,11 @@ int ReceiveMessage(List_Id liste, data_msg* message, int message_length){
 	//if (MSGSIZE<=message_length){
 		if (liste == LIST_READ){
 			debug_pr_fn(2, "receivemessage()entrée\n");
-			debug_pr_fn(2, "receivemessage()entrée\n");
-			osMessageQueueGet(readToAppHandle, message, NULL, osWaitForever);
+			osMessageQueueGet(readToAppHandle, message, 0, osWaitForever);
 			status = 1;
 		}
 		else if(liste == LIST_DISPLAY){
-			osMessageQueueGet(appToDisplayHandle, message, NULL, osWaitForever);
+			osMessageQueueGet(appToDisplayHandle, message, 0, osWaitForever);
 			status = 1;
 		}
 	//}

@@ -24,7 +24,7 @@
 #endif
 
 #include "stm32f4xx_hal.h"
-extern UART_HandleTypeDef huart3;
+extern UART_HandleTypeDef huart7;
 extern osMessageQueueId_t UARTReceptionHandle;
 extern osMessageQueueId_t UARTSendHandle;
 
@@ -147,7 +147,7 @@ char readbutton(char *pReadData, char DataSize)
 	//
 	//	}
 
-	if (osMessageQueueGet(UARTReceptionHandle, pReadData, NULL, osWaitForever)==osOK){
+	if (osMessageQueueGet(UARTReceptionHandle, pReadData, 0, osWaitForever)==osOK){
 		return LCRC_OK;
 	}
 	else {

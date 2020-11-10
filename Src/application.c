@@ -11,7 +11,7 @@
 #include "__debug.h"
 
 //static int8_t g_token_top_selector = 0;
-static int8_t active_player = NO_PLAYER;
+extern int8_t active_player;
 //static int8_t g_matrix[COL_COUNT][LINE_COUNT];
 static bool game = false;
 
@@ -73,6 +73,7 @@ static void instructions_MSG_PLAYER(data_msg received_instructions) {
 	if (active_player == NO_PLAYER) {
 		data_msg instructions_to_send = gp4_init();
 		game = 1;
+
 		debug_printf(1, "player = %d\n", active_player);
 		SendMessage(LIST_DISPLAY, &instructions_to_send, sizeof(data_msg));
 

@@ -2,8 +2,8 @@
 
 
 static int8_t g_token_top_selector = 0;
-static int8_t active_player = NO_PLAYER;
-static int8_t g_matrix[COL_COUNT][LINE_COUNT];
+int8_t active_player = NO_PLAYER;
+static int8_t g_matrix[LINE_COUNT][COL_COUNT];
 //static bool game = false;
 
 
@@ -37,11 +37,12 @@ data_msg gp4_init(void) {
 	data_msg instructions_to_send;
 	active_player = PLAYER_1;
 	g_token_top_selector = START_POSITION;
-	for (row = 0; row < 7; row++) {
+	for (row = 0; row < 6; row++) {
 		for (col = 0; col < 7; col++) {
 			g_matrix[row][col] = NO_PLAYER;
 		}
 	}
+	instructions_to_send.params.player.player = PLAYER_1;
 	instructions_to_send.type = MSG_MOVE_TOKEN;
 	instructions_to_send.params.move_token.positions.end_position.c =
 			START_POSITION;
