@@ -24,16 +24,18 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <ctype.h>
+#include <string.h>
+
+
+
 #include "gp4_game.h"
 #include "leds_control.h"
 #include "application.h"
 #include "__debug.h"
 #include "display.h"
-#include <ctype.h>
-#include <string.h>
-
-
 #include "mydebug.h"
+
 
 /* USER CODE END Includes */
 
@@ -53,6 +55,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 ETH_HandleTypeDef heth;
+
+I2C_HandleTypeDef hi2c1;
 
 UART_HandleTypeDef huart7;
 UART_HandleTypeDef huart3;
@@ -138,6 +142,7 @@ static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
+static void MX_I2C1_Init(void);
 static void MX_UART7_Init(void);
 void StartDefaultTask(void *argument);
 void StartTask01(void *argument);
@@ -181,9 +186,10 @@ int main(void)
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
-	MX_ETH_Init();
+	//	MX_ETH_Init();
 	MX_USART3_UART_Init();
-	MX_USB_OTG_FS_PCD_Init();
+	//	MX_USB_OTG_FS_PCD_Init();
+	MX_I2C1_Init();
 	MX_UART7_Init();
 	/* USER CODE BEGIN 2 */
 
@@ -221,10 +227,10 @@ int main(void)
 
 	/* Create the queue(s) */
 	/* creation of readToApp */
-	readToAppHandle = osMessageQueueNew (100, sizeof(data_msg), &readToApp_attributes);
+	readToAppHandle = osMessageQueueNew (16, sizeof(uint16_t), &readToApp_attributes);
 
 	/* creation of appToDisplay */
-	appToDisplayHandle = osMessageQueueNew (100, sizeof(data_msg), &appToDisplay_attributes);
+	appToDisplayHandle = osMessageQueueNew (16, sizeof(uint16_t), &appToDisplay_attributes);
 
 	/* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
@@ -251,8 +257,6 @@ int main(void)
 	UARTReceptionHandle = osMessageQueueNew (100, 5, &UARTReception_attributes);
 
 	UARTSendHandle = osMessageQueueNew (100, 10, &UARTSend_attributes);
-
-
 	/* add threads, ... */
 	/* USER CODE END RTOS_THREADS */
 
@@ -349,6 +353,53 @@ static void MX_ETH_Init(void)
 	/* USER CODE BEGIN ETH_Init 2 */
 
 	/* USER CODE END ETH_Init 2 */
+
+}
+
+/**
+ * @brief I2C1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_I2C1_Init(void)
+{
+
+	/* USER CODE BEGIN I2C1_Init 0 */
+
+
+	/* USER CODE END I2C1_Init 0 */
+
+	/* USER CODE BEGIN I2C1_Init 1 */
+
+	/* USER CODE END I2C1_Init 1 */
+	hi2c1.Instance = I2C1;
+	hi2c1.Init.ClockSpeed = 100000;
+	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	hi2c1.Init.OwnAddress1 = 0;
+	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	hi2c1.Init.OwnAddress2 = 0;
+	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/** Configure Analogue filter
+	 */
+	if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/** Configure Digital filter
+	 */
+	if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN I2C1_Init 2 */
+
+	/* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -507,6 +558,12 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+//void extract_rtc_data(){
+//	HAL_I2C_Master_Transmit(&hi2c1, addr, (uint8_t*)buffer, size, timeout);
+//
+//}
+
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -524,11 +581,63 @@ void StartDefaultTask(void *argument)
 	int size_of_debug_frame = 31;
 	char debug_frame[] = "dEngage le jeu que je le gagne\n";
 	char truc[size_of_debug_frame];
-	int change_count = 0;
+	//int change_count = 0;
 
 	memcpy((uint8_t*)truc, debug_frame, size_of_debug_frame);
 
 	HAL_UART_Transmit(&huart7, (uint8_t*)debug_frame, size_of_debug_frame, 10);
+
+	uint8_t buffer[100] = { 0 };
+	uint8_t p_registre = 0x00;
+	uint16_t addr = 0xD0;
+	//uint8_t *pData;
+	uint16_t size = 8;
+	uint32_t timeout = 1000;
+	HAL_StatusTypeDef status;
+	uint8_t clock_init = 0x00;
+	HAL_I2C_Mem_Write(&hi2c1,addr, 0x00, 1, &clock_init, 1, 100);
+
+
+	//	HAL_I2C_Master_Transmit(&hi2c1, addr, &p_registre, 1, timeout);
+	//	status = HAL_I2C_Master_Receive(&hi2c1, addr, &buffer, size, timeout);
+	//	osDelay(2);
+
+
+	HAL_I2C_Master_Transmit(&hi2c1, addr, &p_registre, 1, timeout);
+	status = HAL_I2C_Master_Receive(&hi2c1, addr, &buffer, size, timeout);
+	osDelay(2);
+	uint8_t sec_diz;
+	uint8_t sec_unit;
+	uint8_t min_diz;
+	uint8_t min_unit;
+	uint8_t hour_diz;
+	uint8_t hour_unit;
+	uint8_t date_diz;
+	uint8_t date_unit;
+	uint8_t month_diz;
+	uint8_t month_unit;
+	uint8_t year_diz;
+	uint8_t year_unit;
+
+	sec_diz = (buffer[0] & 0x70)>>4;
+	sec_unit = (buffer[0] & 0x0F);
+
+	min_diz = (buffer[1] & 0x70)>>4;
+	min_unit = (buffer[1] & 0x0F);
+
+	hour_diz = (buffer[2] & 0x10)>>4;
+	hour_unit = (buffer[2] & 0x0F);
+
+	date_diz = (buffer[4] & 0x30)>>4;
+	date_unit = (buffer[4] & 0x0F);
+
+	month_diz = (buffer[5] & 0x10)>>4;
+	month_unit = (buffer[5] & 0x0F);
+
+	year_diz = (buffer[6] & 0xF0)>>4;
+	year_unit = (buffer[6] & 0x0F);
+
+
 
 	unsigned char UARTmessageToSend[SIZE_OF_LED_COMMAND_BUFFER];
 	unsigned char UARTmessageReceived[SIZE_OF_PLAYER_COMMAND_BUFFER];
@@ -542,28 +651,38 @@ void StartDefaultTask(void *argument)
 		if(HAL_UART_Receive(&huart7, UARTmessageReceived,SIZE_OF_PLAYER_COMMAND_BUFFER, 10)==HAL_OK){
 			osMessageQueuePut(UARTReceptionHandle, UARTmessageReceived, 1, 10);
 		}
+
 		if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)){
-			if(change_count == 0)
-			{
-				debug_frame_to_upper(truc, size_of_debug_frame);
-				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
-				change_count = 1;
-			}
-			else if(change_count == 1)
-			{
-				debug_frame_to_lower(truc, size_of_debug_frame);
-				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
-				change_count = 2;
-			}
-			else if(change_count == 2)
-			{
-				debug_frame_reverse(truc, size_of_debug_frame);
-				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
-				debug_frame_reverse(truc, size_of_debug_frame);
-				change_count = 0;
-			}
+
+
+			//	HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
 
 		}
+
+
+		//----------------Modification d'un tableau de charactere et affichage dans la fenetre de débug du simu----------
+		//		if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)){
+		//			if(change_count == 0)
+		//			{
+		//				debug_frame_to_upper(truc, size_of_debug_frame);
+		//				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
+		//				change_count = 1;
+		//			}
+		//			else if(change_count == 1)
+		//			{
+		//				debug_frame_to_lower(truc, size_of_debug_frame);
+		//				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
+		//				change_count = 2;
+		//			}
+		//			else if(change_count == 2)
+		//			{
+		//				debug_frame_reverse(truc, size_of_debug_frame);
+		//				HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
+		//				debug_frame_reverse(truc, size_of_debug_frame);
+		//				change_count = 0;
+		//			}
+		//
+		//		}
 	}
 	/* USER CODE END 5 */
 }
@@ -578,6 +697,7 @@ void StartDefaultTask(void *argument)
 void StartTask01(void *argument)
 {
 	/* USER CODE BEGIN StartTask01 */
+
 
 	debug_pr_fn(1,"read()entrée thread read\n");
 	char recept_tab[5]={0};
