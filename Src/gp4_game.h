@@ -53,7 +53,7 @@ winner_t gp4_check_win_leftdiag(void);
 winner_t gp4_check_equal(void);
 winner_t gp4_check_status(void);
 pos_token_t gp4_next_playerV2(void);
-
+int8_t get_active_player ();
 
 
 

@@ -227,10 +227,10 @@ int main(void)
 
 	/* Create the queue(s) */
 	/* creation of readToApp */
-	readToAppHandle = osMessageQueueNew (16, sizeof(uint16_t), &readToApp_attributes);
+	readToAppHandle = osMessageQueueNew (16, sizeof(data_msg), &readToApp_attributes);
 
 	/* creation of appToDisplay */
-	appToDisplayHandle = osMessageQueueNew (16, sizeof(uint16_t), &appToDisplay_attributes);
+	appToDisplayHandle = osMessageQueueNew (16, sizeof(data_msg), &appToDisplay_attributes);
 
 	/* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
@@ -578,67 +578,140 @@ void StartDefaultTask(void *argument)
 	/* USER CODE BEGIN 5 */
 	/* Infinite loop */
 
-	int size_of_debug_frame = 31;
-	char debug_frame[] = "dEngage le jeu que je le gagne\n";
-	char truc[size_of_debug_frame];
-	//int change_count = 0;
+	//-------------- display debug msg--------------------------------------
+//	int size_of_debug_frame = 31;
+//	char debug_message[] = "dEngage le jeu que je le gagne\n";
+//	char debug_frame[size_of_debug_frame];
+//	//int change_count = 0;
+//	memcpy((uint8_t*)debug_frame, debug_message, size_of_debug_frame);
+//	HAL_UART_Transmit(&huart7, (uint8_t*)debug_message, size_of_debug_frame, 10);
 
-	memcpy((uint8_t*)truc, debug_frame, size_of_debug_frame);
 
-	HAL_UART_Transmit(&huart7, (uint8_t*)debug_frame, size_of_debug_frame, 10);
+	//----------------------------------------------------------------------
 
-	uint8_t buffer[100] = { 0 };
-	uint8_t p_registre = 0x00;
-	uint16_t addr = 0xD0;
-	//uint8_t *pData;
-	uint16_t size = 8;
-	uint32_t timeout = 1000;
-	HAL_StatusTypeDef status;
-	uint8_t clock_init = 0x00;
-	HAL_I2C_Mem_Write(&hi2c1,addr, 0x00, 1, &clock_init, 1, 100);
 
+	//-------------- recup data from RTC--------------------------------------
+//	uint8_t buffer[100] = { 0 };
+//	uint8_t p_registre = 0x00;
+//	uint16_t addr = 0xD0;
+//	//uint8_t *pData;
+//	uint16_t size = 8;
+//	uint32_t timeout = 1000;
+//	HAL_StatusTypeDef status;
+//	uint8_t clock_init = 0x00;
+//	HAL_I2C_Mem_Write(&hi2c1,addr, 0x00, 1, &clock_init, 1, 100);
+	//----------------------------------------------------------------------
 
 	//	HAL_I2C_Master_Transmit(&hi2c1, addr, &p_registre, 1, timeout);
 	//	status = HAL_I2C_Master_Receive(&hi2c1, addr, &buffer, size, timeout);
 	//	osDelay(2);
 
+	uint16_t addr = 0xD0;
+//	uint8_t minute_init = 37;
+//	uint8_t hour_init = 17;
+//	uint8_t date_init = 22;
+//	uint8_t month_init = 17;
+//	uint8_t year_init = 32;
 
-	HAL_I2C_Master_Transmit(&hi2c1, addr, &p_registre, 1, timeout);
-	status = HAL_I2C_Master_Receive(&hi2c1, addr, &buffer, size, timeout);
-	osDelay(2);
-	uint8_t sec_diz;
-	uint8_t sec_unit;
-	uint8_t min_diz;
-	uint8_t min_unit;
-	uint8_t hour_diz;
-	uint8_t hour_unit;
-	uint8_t date_diz;
-	uint8_t date_unit;
-	uint8_t month_diz;
-	uint8_t month_unit;
-	uint8_t year_diz;
-	uint8_t year_unit;
 
-	sec_diz = (buffer[0] & 0x70)>>4;
-	sec_unit = (buffer[0] & 0x0F);
-
-	min_diz = (buffer[1] & 0x70)>>4;
-	min_unit = (buffer[1] & 0x0F);
-
-	hour_diz = (buffer[2] & 0x10)>>4;
-	hour_unit = (buffer[2] & 0x0F);
-
-	date_diz = (buffer[4] & 0x30)>>4;
-	date_unit = (buffer[4] & 0x0F);
-
-	month_diz = (buffer[5] & 0x10)>>4;
-	month_unit = (buffer[5] & 0x0F);
-
-	year_diz = (buffer[6] & 0xF0)>>4;
-	year_unit = (buffer[6] & 0x0F);
+//	HAL_I2C_Mem_Write(&hi2c1,addr, 0x01, 1, &minute_init, 1, 100);
+//	HAL_I2C_Mem_Write(&hi2c1,addr, 0x02, 1, &hour_init, 1, 100);
+//	HAL_I2C_Mem_Write(&hi2c1,addr, 0x04, 1, &date_init, 1, 100);
+//	HAL_I2C_Mem_Write(&hi2c1,addr, 0x05, 1, &month_init, 1, 100);
+//	HAL_I2C_Mem_Write(&hi2c1,addr, 0x06, 1, &year_init, 1, 100);
 
 
 
+	char total_init [6];
+	total_init[0] = 00;
+	total_init[1]= 18;
+	total_init[2] = 00;
+	total_init[3] = 22;
+	total_init[4] = 17;
+	total_init[5] = 32;
+	HAL_I2C_Mem_Write(&hi2c1,addr, 0x01, 1, (uint8_t*)total_init, 6, 100);
+
+
+	void display_debug_msg(char debug_msg[], int size_of_debug_msg){
+		//char debug_frame[size_of_debug_msg];
+		//int change_count = 0;
+
+		HAL_UART_Transmit(&huart3, (uint8_t*)debug_msg, size_of_debug_msg, 10);
+	}
+
+
+	void extract_complete_date(){
+		//-------------- recup data from RTC--------------------------------------
+		uint8_t buffer[100] = { 0 };
+		uint8_t p_registre = 0x00;
+		uint16_t addr = 0xD0;
+		//uint8_t *pData;
+		uint16_t size = 8;
+		uint32_t timeout = 1000;
+		HAL_StatusTypeDef status;
+		//uint8_t clock_init = 0x00;
+		//HAL_I2C_Mem_Write(&hi2c1,addr, 0x00, 1, &clock_init, 1, 100);
+
+		HAL_I2C_Master_Transmit(&hi2c1, addr, &p_registre, 1, timeout);
+		status = HAL_I2C_Master_Receive(&hi2c1, addr, (uint8_t*) buffer, size, timeout);
+		osDelay(2);
+
+
+		uint8_t sec_diz;
+		uint8_t sec_unit;
+		uint8_t min_diz;
+		uint8_t min_unit;
+		uint8_t hour_diz;
+		uint8_t hour_unit;
+		uint8_t date_diz;
+		uint8_t date_unit;
+		uint8_t month_diz;
+		uint8_t month_unit;
+		uint8_t year_diz;
+		uint8_t year_unit;
+
+		sec_diz = (buffer[0] & 0x70)>>4;
+		sec_unit = (buffer[0] & 0x0F);
+		min_diz = (buffer[1] & 0x70)>>4;
+		min_unit = (buffer[1] & 0x0F);
+		hour_diz = (buffer[2] & 0x10)>>4;
+		hour_unit = (buffer[2] & 0x0F);
+		date_diz = (buffer[4] & 0x30)>>4;
+		date_unit = (buffer[4] & 0x0F);
+		month_diz = (buffer[5] & 0x10)>>4;
+		month_unit = (buffer[5] & 0x0F);
+		year_diz = (buffer[6] & 0xF0)>>4;
+		year_unit = (buffer[6] & 0x0F);
+
+		int size_of_raw_date = 21;
+		char raw_date [size_of_raw_date];
+
+		raw_date[0] = 'd';
+		raw_date[1] = date_diz + 48;
+		raw_date[2] = date_unit + 48;
+		raw_date[3] = ':';
+		raw_date[4] = month_diz + 48;
+		raw_date[5] = month_unit + 48;
+		raw_date[6] = ':';
+		raw_date[7] = year_diz + 48;
+		raw_date[8] = year_unit + 48;
+		raw_date[9] = ' ';
+		raw_date[10] = '-';
+		raw_date[11] = ' ';
+		raw_date[12] = hour_diz + 48;
+		raw_date[13] = hour_unit + 48;
+		raw_date[14] = ':';
+		raw_date[15] = min_diz + 48;
+		raw_date[16] = min_unit + 48;
+		raw_date[17] = ':';
+		raw_date[18] = sec_diz + 48;
+		raw_date[19] = sec_unit + 48;
+		raw_date[20] = '\n';
+
+		display_debug_msg(raw_date, size_of_raw_date);
+
+	}
+	extract_complete_date();
 	unsigned char UARTmessageToSend[SIZE_OF_LED_COMMAND_BUFFER];
 	unsigned char UARTmessageReceived[SIZE_OF_PLAYER_COMMAND_BUFFER];
 	for(;;)
@@ -646,21 +719,24 @@ void StartDefaultTask(void *argument)
 		if (osMessageQueueGetCount(UARTSendHandle)){
 			if(osMessageQueueGet(UARTSendHandle, UARTmessageToSend, 0, 10)==osOK){
 				HAL_UART_Transmit(&huart7, UARTmessageToSend, SIZE_OF_LED_COMMAND_BUFFER, 10);
+				osDelay(10);
 			}
 		}
 		if(HAL_UART_Receive(&huart7, UARTmessageReceived,SIZE_OF_PLAYER_COMMAND_BUFFER, 10)==HAL_OK){
 			osMessageQueuePut(UARTReceptionHandle, UARTmessageReceived, 1, 10);
 		}
 
-		if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)){
 
-
-			//	HAL_UART_Transmit(&huart7, (uint8_t*)truc, size_of_debug_frame, 10);
-
-		}
 
 
 		//----------------Modification d'un tableau de charactere et affichage dans la fenetre de débug du simu----------
+		//		int size_of_debug_frame = 31;
+		//		char debug_message[] = "dEngage le jeu que je le gagne\n";
+		//		char debug_frame[size_of_debug_frame];
+		//		//int change_count = 0;
+		//		memcpy((uint8_t*)debug_frame, debug_message, size_of_debug_frame);
+		//		HAL_UART_Transmit(&huart7, (uint8_t*)debug_message, size_of_debug_frame, 10);
+		//
 		//		if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)){
 		//			if(change_count == 0)
 		//			{
@@ -708,29 +784,42 @@ void StartTask01(void *argument)
 	{
 		//osDelay(1);
 		if (readbutton(recept_tab, 5) == LCRC_OK) {
-			debug_pr_fn(1,"read()input = (%d %d %d %d)\n", recept_tab[0], recept_tab[1],	recept_tab[2], recept_tab[3]);
+			debug_pr_fn(1,"read()input = (%d %d %d %d)\n", recept_tab[0], recept_tab[1], recept_tab[2], recept_tab[3]);
 			if (recept_tab[3] == 100) {
 				request.type = MSG_PLAYER;
 
-				if (recept_tab[1] == 49) {
+				//if (recept_tab[1] == 49) {
+				if (recept_tab[1] == '1') {
 					request.params.player.player = PLAYER_1;
 				}
-				if (recept_tab[1] == 50) {
+				//if (recept_tab[1] == 50) {
+				else if (recept_tab[1] == '2') {
 					request.params.player.player = PLAYER_2;
 				}
-				if (recept_tab[2] == 117) { //vers le haut
+				else if (recept_tab[1] == '3') {
+					int8_t player = get_active_player();
+					if (player == NO_PLAYER){
+						player = PLAYER_1;
+					}
+					request.params.player.player = player;
+				}
+				//if (recept_tab[2] == 117) { //vers le haut
+				if (recept_tab[2] == 'u') { //vers le haut
 					debug_pr_fn(2,"read_button():condition \"haut\"\n");
 					request.params.player.direction = UP;
 				}
-				if (recept_tab[2] == 114 ) {	// vers le droite
+				//if (recept_tab[2] == 114 ) {	// vers le droite
+				else if (recept_tab[2] == 'r' ) {	// vers le droite
 					debug_pr_fn(2,"read_button():condition \"droite\" \n");
 					request.params.player.direction = RIGHT;
 				}
-				if (recept_tab[2] == 100 ) { //vers le bas
+				//if (recept_tab[2] == 100 ) { //vers le bas
+				else if (recept_tab[2] == 'd') { //vers le bas
 					debug_pr_fn(2,"read_button():condition \"bas\"\n");
 					request.params.player.direction = DOWN;
 				}
-				if (recept_tab[2] == 108 ) { //vers le gauche
+				//if (recept_tab[2] == 108 ) { //vers le gauche
+				else if (recept_tab[2] == 'l' ) { //vers le gauche
 					debug_pr_fn(2,"read_button():condition \"gauche\"\n");
 					request.params.player.direction = LEFT;
 				}

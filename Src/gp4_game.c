@@ -19,6 +19,11 @@ Color Black = { 0, 0, 0 }, Blue = { 0, 0, 255 }, Red = { 255, 0, 0 }, White = {
 //	printf("\n");
 //}
 
+int8_t get_active_player (){
+	return active_player;
+}
+
+
 bool gp4_is_col_empty(int col) {
 	if (col < 0) {
 		return false;
@@ -39,11 +44,12 @@ data_msg gp4_init(void) {
 	g_token_top_selector = START_POSITION;
 	for (row = 0; row < 6; row++) {
 		for (col = 0; col < 7; col++) {
-			g_matrix[row][col] = NO_PLAYER;
+			g_matrix[row][col] = 0;
 		}
 	}
-	instructions_to_send.params.player.player = PLAYER_1;
 	instructions_to_send.type = MSG_MOVE_TOKEN;
+	instructions_to_send.params.move_token.positions.beg_position.c = 0;
+	instructions_to_send.params.move_token.positions.beg_position.l = 0;
 	instructions_to_send.params.move_token.positions.end_position.c =
 			START_POSITION;
 	instructions_to_send.params.move_token.positions.end_position.l = 0;
